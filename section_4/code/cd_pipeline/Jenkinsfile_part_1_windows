@@ -1,0 +1,54 @@
+#!/usr/bin/groovy
+
+pipeline {
+    agent any
+
+    options {
+        disableConcurrentBuilds()
+    }
+
+    stages {
+
+        stage("Build") {
+            steps { buildApp() }
+		}
+
+        stage("Deploy - Dev") {
+            steps { deploy('dev') }
+		}
+
+	}
+}
+
+
+// steps
+def buildApp() {
+	dir ('section_4/code/cd_pipeline' ) {
+		// Usar bat en lugar de sh para Windows, y docker CLI directamente
+		bat "docker build -t hands-on-jenkins/myapp:${BUILD_NUMBER} ."
+	}
+}
+
+def deploy(environment) {
+
+	def containerName = ''
+	def port = ''
+
+	if ("${environment}" == 'dev') {
+		containerName = "app_dev"
+		port = "8888"
+	} 
+	else {
+		println "Environment not valid"
+		System.exit(0)
+	}
+
+	// Usar bat y PowerShell para Windows
+	bat """
+		@echo off
+		for /f %%i in ('docker ps -q -f name=${containerName}') do docker stop %%i
+		for /f %%i in ('docker ps -a -q -f name=${containerName}') do docker rm %%i
+		docker run -d -p ${port}:5000 --name ${containerName} hands-on-jenkins/myapp:${BUILD_NUMBER}
+	"""
+
+}
